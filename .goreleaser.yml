@@ -11,19 +11,13 @@ builds:
   # CoreDHCP build
   - id: coredhcp
     main: ./build/coredhcp/
-    goos:  # CoreDHCP only supports linux
+    goos:
       - linux
     goarch:
-      - amd64
-      - arm64
+      - amd64  # Removed arm64
     goamd64:
       - v3
       - v1
-
-    # If you want to build this locally, you can set the following environment variables:
-    # export BUILD_HOST=$(hostname)
-    # export GO_VERSION=$(go version | awk '{print $3}')
-    # export BUILD_USER=$(whoami)
     ldflags:
       - "-s -w \
          -X github.com/openchami/coresmd/internal/version.GitCommit={{ .Commit }} \
@@ -37,12 +31,9 @@ builds:
          -X github.com/openchami/coresmd/internal/version.BuildUser={{ .Env.BUILD_USER }} "
     binary: coredhcp
     env:
-      # The bootloop plugin uses sqlite3 which requires CGO.
       - CGO_ENABLED=1
-      - >-
-        CC={{- if eq .Os "linux" -}}
-            {{- if eq .Arch "amd64" -}}gcc{{- else -}}aarch64-linux-gnu-gcc{{- end -}}
-        {{- end }}
+      # Simplified CC since we are only building amd64 on linux now
+      - CC=gcc
 
   # CoreDNS build
   - id: coredns
@@ -50,12 +41,10 @@ builds:
     goos:
       - linux
     goarch:
-      - amd64
-      - arm64
+      - amd64 # Removed arm64
     goamd64:
       - v3
       - v1
-
     ldflags:
       - "-s -w \
          -X github.com/openchami/coresmd/internal/version.GitCommit={{ .Commit }} \
@@ -70,10 +59,7 @@ builds:
     binary: coredns
     env:
       - CGO_ENABLED=1
-      - >-
-        CC={{- if eq .Os "linux" -}}
-            {{- if eq .Arch "amd64" -}}gcc{{- else -}}aarch64-linux-gnu-gcc{{- end -}}
-        {{- end }}
+      - CC=gcc
 
 dockers:
   - image_templates:
@@ -95,47 +81,28 @@ dockers:
       - LICENSE
       - README.md
 
-  - image_templates:
-      - &arm64v8_linux_image "ghcr.io/openchami/{{.ProjectName}}:{{ if .IsSnapshot }}{{ .Env.DOCKER_TAG }}{{ else }}{{ .Tag }}{{ end }}-arm64"
-      - "{{ if not .IsSnapshot }}ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}-arm64{{ end }}"
-      - "{{ if not .IsSnapshot }}ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}.{{ .Minor }}-arm64{{ end }}"
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    extra_files:
-      - README.md
-      - LICENSE
-    goarch: arm64
+  # Removed the entire arm64 docker build block here
 
 docker_manifests:
-  # For releases: latest + semantic versioning tags
+  # Removed *arm64v8_linux_image from all manifests
   - name_template: "{{ if not .IsSnapshot }}ghcr.io/openchami/{{.ProjectName}}:latest{{ end }}"
     skip_push: "{{ .IsSnapshot }}"
     image_templates:
       - *amd64_linux_image
-      - *arm64v8_linux_image
 
   - name_template: "ghcr.io/openchami/{{.ProjectName}}:{{ if .IsSnapshot }}{{ .Env.DOCKER_TAG }}{{ else }}{{ .Tag }}{{ end }}"
     image_templates:
       - *amd64_linux_image
-      - *arm64v8_linux_image
 
   - name_template: "{{ if not .IsSnapshot }}ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}{{ end }}"
     skip_push: "{{ .IsSnapshot }}"
     image_templates:
       - *amd64_linux_image
-      - *arm64v8_linux_image
 
   - name_template: "{{ if not .IsSnapshot }}ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}.{{ .Minor }}{{ end }}"
     skip_push: "{{ .IsSnapshot }}"
     image_templates:
       - *amd64_linux_image
-      - *arm64v8_linux_image
 
 release:
   github:
